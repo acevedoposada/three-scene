@@ -11,26 +11,18 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff90 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+const backgroundColor = new THREE.Color("rgba(224,202,173,255)");
+scene.background = backgroundColor;
 
 camera.position.z = 5;
 
 const loader = new GLTFLoader();
 
 loader.load(
-  './assets/Conejo_con_pollo.glb',
-  function (gltf) {
-    console.log(gltf);
-    console.log(gltf.scene.children[0].children[2]);
-    // gltf.scene.children[0].rotation += 1000;
+  './assets/platforms.gltf',
+  (gltf) =>{
+    gltf.scene.scale.set(1.5, 1.5, 1.5);
     scene.add(gltf.scene);
-  },
-  undefined,
-  function (error) {
-    console.error(error);
   }
 );
 
@@ -45,7 +37,5 @@ document.body.appendChild(renderer.domElement);
 
 (function animate() {
   requestAnimationFrame(animate);
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
   renderer.render(scene, camera);
 })();
