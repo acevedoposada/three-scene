@@ -4,8 +4,15 @@ import * as THREE from 'three';
 import './style.css';
 
 const objectsToDetectCollisionWith = [];
-const cameraOffset = new THREE.Vector3(0, 2, 5); // coordenadas camara
+const cameraOffset = new THREE.Vector3(0, 2, 5);
 
+// luz rojita 
+const redLaserLight = new THREE.SpotLight(0xff0000, 5, 1000);
+const lightOffset = new THREE.Vector3(0, 0, 0);
+
+// Definir un rayo desde la posición de la luz roja en la dirección de la luz
+const raycaster = new THREE.Raycaster();
+raycaster.set(redLaserLight.position, redLaserLight.target.position.clone().sub(redLaserLight.position).normalize());
 
 const scene = new THREE.Scene();
 const cameraSquare = new THREE.PerspectiveCamera(
@@ -28,11 +35,18 @@ scene.background = backgroundColor;
 cameraSquare.position.z = 5;
 cameraScene.position.copy(cameraSquare.position);
 
-
 // Agregar un cuadrado al escenario
 const squareGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-const squareMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-const square = new THREE.Mesh(squareGeometry, squareMaterial);
+const squareMaterials = [
+  new THREE.MeshBasicMaterial({ color: 0x000000 }),  // Negro (lados)
+  new THREE.MeshBasicMaterial({ color: 0x000000 }),  // Azul (frente)
+  new THREE.MeshBasicMaterial({ color: 0x000000 }),  // Negro (arriba)
+  new THREE.MeshBasicMaterial({ color: 0x000000 }),  // Negro (abajo)
+  new THREE.MeshBasicMaterial({ color: 0x000000 }),  // Negro (izquierda)
+  new THREE.MeshBasicMaterial({ color: 0x0000ff }),  // Negro (derecha)
+];
+const square = new THREE.Mesh(squareGeometry, squareMaterials);
+
 scene.add(square);
 
 const loader = new GLTFLoader();
@@ -41,9 +55,15 @@ loader.load(
   './assets/platforms.gltf',
   (gltf) => {
     gltf.scene.scale.set(1.5, 1.5, 1.5);
-    objectsToDetectCollisionWith.push(gltf.scene)
+    objectsToDetectCollisionWith.push(gltf.scene);
     scene.add(gltf.scene);
     squarePosition.set(0, 0.5, 0);
+
+    // configurar lucecita roja
+    redLaserLight.target = square;
+    redLaserLight.angle = 0.1;
+    redLaserLight.penumbra = 0.5;
+    scene.add(redLaserLight);
   }
 );
 
@@ -52,7 +72,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 
 const controls = new OrbitControls(cameraSquare, renderer.domElement);
 controls.enableDamping = true;
-//controls.update();
 
 const mouseControls = new OrbitControls(cameraScene, renderer.domElement);
 mouseControls.enableDamping = true;
@@ -60,19 +79,16 @@ mouseControls.dampingFactor = 0.05;
 
 document.body.appendChild(renderer.domElement);
 
-// movimiento del cuadrado
 const squareSpeed = 0.05;
-const jumpSpeed = 0.15; // Velocidad de salto
-const gravity = 0.1; // Gravedad
-let isJumping = false; // Estado de salto
+const jumpSpeed = 0.15;
+const gravity = 0.1;
+let isJumping = false;
 const squarePosition = new THREE.Vector3(0, 0.5, 0);
 
-// Capturar eventos de teclado
 const onKeyDown = (event) => {
   switch (event.key) {
     case 'ArrowUp':
       if (!checkCollisions()) {
-        // squarePosition.z -= squareSpeed;
         advance();
       }
       break;
@@ -83,14 +99,12 @@ const onKeyDown = (event) => {
       break;
     case 'ArrowLeft':
       if (!checkCollisions()) {
-        // squarePosition.x -= squareSpeed;
-        advance(false, 'x');
+        rotateSquare(false);
       }
       break;
     case 'ArrowRight':
       if (!checkCollisions()) {
-        // squarePosition.x += squareSpeed;
-        advance(true, 'x');
+        rotateSquare(true);
       }
       break;
     case ' ':
@@ -102,21 +116,76 @@ const onKeyDown = (event) => {
   }
 };
 
-function advance(backLeft = false, axis = 'z') {
-  let advanceLong = 0;
+function advance(backwards = false) {
   const speed = 0.03;
-  const advanceLimit = 2;
-  const initial = squarePosition[axis];
+  const advanceLimit = 0.5;
+  const initialPosition = squarePosition.clone();
+  console.log(redLaserLight);
+  const intersections = raycaster.intersectObjects(objectsToDetectCollisionWith);
+  if (intersections) {
+    console.log({intersections});
+    const collisionPoint = intersections[0].point;
+    const distanceToCollision = redLaserLight.position.distanceTo(collisionPoint);
+
+    // Aquí puedes hacer lo que necesites con la colisión y la distancia, como identificar el obstáculo.
+    console.log('Colisión con objeto a una distancia de:', distanceToCollision);
+  }
+  
+  const direction = new THREE.Vector3(0, 0, -1);
+  direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), square.rotation.y);
+  direction.normalize();
+
   const advanceAnimation = () => {
-    if (advanceLong < advanceLimit) {
-      advanceLong += speed;
-      squarePosition[axis] = (backLeft) ? initial + advanceLong : initial - advanceLong;
+    if (initialPosition.distanceTo(squarePosition) < advanceLimit) {
+      squarePosition.addScaledVector(direction, (backwards ? -1 : 1) * speed);
       refreshCamera();
       requestAnimationFrame(advanceAnimation);
     }
   };
+
   advanceAnimation();
+  setDirectionOriginLight();
 }
+
+function setDirectionOriginLight() {
+  // Guardar la dirección de la luz al inicio de la rotación
+  const initialLightDirection = new THREE.Vector3();
+  initialLightDirection.copy(redLaserLight.position).sub(squarePosition).normalize();
+  // Calcular la nueva dirección de la luz
+  const newLightDirection = new THREE.Vector3();
+  newLightDirection.copy(initialLightDirection);
+  newLightDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), square.rotation.y);
+  // Actualizar la posición y dirección de la luz
+  redLaserLight.position.copy(lightOffset);
+  redLaserLight.position.add(squarePosition);
+}
+
+function rotateSquare(clockwise = true) {
+  const angle = Math.PI / 2;
+  const duration = 1000;
+  const initialRotationY = square.rotation.y;
+  const targetRotationY = clockwise ? initialRotationY - angle : initialRotationY + angle;
+  const startTime = performance.now();
+
+  
+
+  function animateRotation(time) {
+    const elapsedTime = time - startTime;
+    if (elapsedTime >= duration) {
+      square.rotation.y = targetRotationY;
+      setDirectionOriginLight();
+      refreshCamera();
+    } else {
+      const t = elapsedTime / duration;
+      square.rotation.y = initialRotationY + (targetRotationY - initialRotationY) * t;
+      refreshCamera();
+      requestAnimationFrame(animateRotation);
+    }
+  }
+
+  requestAnimationFrame(animateRotation);
+}
+
 
 function refreshCamera() {
   cameraScene.position.copy(cameraSquare.position);
@@ -156,40 +225,27 @@ function jump() {
 }
 
 function checkCollisions() {
-  // Clonar la posición actual del cuadrado
   const newPosition = squarePosition.clone();
-
-  // Mover el cuadrado en la dirección deseada (ejemplo: hacia arriba)
-  newPosition.y += squareSpeed;
-
-  // Crear un rayo que parte de la posición actual del cuadrado
+  newPosition.z += squareSpeed;
   const ray = new THREE.Raycaster(squarePosition, newPosition.sub(squarePosition).normalize());
-
-  // Obtener todos los objetos en la dirección del rayo
   const intersects = ray.intersectObjects(objectsToDetectCollisionWith);
 
   if (intersects.length > 0) {
-    // Si se detecta una colisión, no avanzar
-    return true;
+    return false;
   }
 
   return false;
 }
 
-
 window.addEventListener('keydown', onKeyDown);
-
 
 (function animate() {
   requestAnimationFrame(animate);
+  
   square.position.copy(squarePosition);
-
-  // validate square no fall
   if (squarePosition.y < 0.5) {
     squarePosition.y = 0.5;
   }
-
-  // altura maxima
   if (squarePosition.y > 2.5) {
     squarePosition.y = 2.5;
   }
