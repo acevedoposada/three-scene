@@ -9,5 +9,7 @@ export const buildSquare = (THREE) => {
 		new THREE.MeshBasicMaterial({ color: 0xff00ff }),
 		new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
 	];
-	return {square: new THREE.Mesh(squareGeometry, squareMaterials), squarePosition};
+	const square = new THREE.Mesh(squareGeometry, squareMaterials)
+	
+	return {square, squarePosition};
 }

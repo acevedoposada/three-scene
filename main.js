@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import './style.css';
 import { buildSquare } from './public/utils/elements/sqare';
+import { buildGhost } from './public/utils/elements/ghost'
 import { onKeyDown } from './public/utils/actions/keyBoard';
 
 const scene = new THREE.Scene();
@@ -12,8 +13,9 @@ const renderer = new THREE.WebGLRenderer();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(18, 2, 0);
 
-const {square, squarePosition} = buildSquare(THREE);
-scene.add(square);
+const { square, squarePosition } = buildSquare(THREE);
+const { ghost, ghostPosition } = buildGhost(THREE)
+scene.add(ghost);
 
 const backgroundColor = new THREE.Color("rgba(224,202,173,255)");
 scene.background = backgroundColor;
@@ -40,13 +42,16 @@ scene.add(light);
 
 (function animate() {
   square.position.copy(squarePosition);
-  camera.position.copy(squarePosition).add(new THREE.Vector3(3, 1, 0));
+  ghost.position.copy(ghostPosition)
+  // camera.position.copy(squarePosition).add(new THREE.Vector3(3, 1, 0));
+  camera.position.copy(ghostPosition).add(new THREE.Vector3(3, 1, 0));
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 })();
 
 const onKeyDownListener = (e) => {
-  onKeyDown(e, square, squarePosition)
+  // onKeyDown(e, square, squarePosition)
+  onKeyDown(e, ghost, ghostPosition)
 };
 
 
